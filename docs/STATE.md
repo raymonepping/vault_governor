@@ -428,3 +428,22 @@ fixed:
 Results: unit tests 52 (scripts 7, API 42, web 3); `make lint` clean;
 `make boundary` 66; `make probe` 83; `make verify` **72 passed**;
 `make test-ui` **24 passed**; `make tf-plan-all` empty.
+
+### Round 2 (2026-11-11), after commit 44f5f7e
+
+The four reviews again (the whole repo, the round 1 commit, the API and the
+SCIM CLI, the security pass). Four findings, all fixed:
+
+18. `make down` said "stopped" even when nothing stopped (each compose stop
+    swallowed its error): `scripts/down.sh` fails when Podman does not
+    answer or a `vgov-` container still runs, and only then says stopped.
+    A real `make down`: 8 s, exit 0.
+19. The Overview's chapter list broke titles word by word (`.next-list li`
+    laid title and text side by side): title above text now.
+20. Dependabot watched Terraform in `/`, where none is left: it now watches
+    GitHub Actions, both Terraform roots and npm in `web/` and `e2e/`.
+21. A policy name broke at its dash in the people table: identifiers stay
+    whole (`.nowrap`).
+
+Results: `make verify` **72 passed**, `make test-ui` **24 passed**,
+screenshots refreshed and looked at (overview, desktop and phone).

@@ -170,6 +170,9 @@ kbd {
 }
 .policy-src:focus-visible { outline: 2px solid var(--vg-action-primary); outline-offset: 2px; }
 
+/* An identifier stays whole (gov-requestor, not "gov-" / "requestor"). */
+.nowrap { white-space: nowrap; }
+
 .signin-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .signin-form .form-field { min-width: 200px; flex: 1 1 200px; }
 .signin-notice h3 { margin: 0 0 6px; }

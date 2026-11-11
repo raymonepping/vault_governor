@@ -259,10 +259,8 @@ open: ## Print the console, API and Vault addresses
 up: ## (changes state) Daily start (and the Lab Index's Start): clock-sync, vault-s, vault-1..3, app; builds the lab once if it never ran
 	$(call run,up.sh)
 
-down: ## (changes state) Stop app, vault, seal; containers and volumes are kept
-	@./scripts/compose.sh app stop 2>/dev/null || true
-	@$(MAKE) --no-print-directory vault-down
-	@echo "down: api, web, vault-1..3 and vault-s stopped; every vgov- volume kept (make up starts it again)"
+down: ## (changes state) Stop app, vault, seal; containers and volumes are kept; fails if one still runs
+	@./scripts/down.sh
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 

@@ -66,7 +66,7 @@ export default function Overview() {
                     </td>
                     <td>{p.title}</td>
                     <td>{p.source === 'scim' ? 'SCIM (HR)' : 'userpass'}</td>
-                    <td>
+                    <td className="nowrap">
                       <Mono>{p.policy}</Mono>
                     </td>
                   </tr>
