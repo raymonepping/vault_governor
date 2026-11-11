@@ -15,23 +15,45 @@ const PATCH_OP = "urn:ietf:params:scim:api:messages:2.0:PatchOp";
 export class ScimError extends Error {
   constructor(status, detail, what) {
     super(`${what}: HTTP ${status}${detail ? `: ${detail}` : ""}`);
+    this.name = "ScimError";
     this.status = status;
     this.detail = detail;
   }
 }
 
-// client({ addr, namespace, token, fetch }) -> the four calls the story needs.
-// `token` is a function, so a re-minted token file is read on every call.
-export function scimClient({ addr, namespace, token, fetch: f = fetch }) {
-  const base = `${addr.replace(/\/$/, "")}/v1/${namespace}/identity/scim/v2`;
+// A referenced setTimeout aborts the whole exchange, body included
+// (AbortSignal.timeout was seen never to fire on a hung connection, vault.js).
+async function fetchWithTimeout(f, url, opts, timeoutMs, what) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(new Error(`timed out after ${timeoutMs} ms`)), timeoutMs);
+  try {
+    const res = await f(url, { ...opts, signal: ac.signal });
+    return { res, text: await res.text() };
+  } catch (e) {
+    throw new ScimError(ac.signal.aborted ? 504 : 503, ac.signal.reason?.message || e?.cause?.code || e.message, what);
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+// client({ addr, namespace, token, fetch, timeoutMs }) -> the calls the story
+// needs. `token` is a function, so a re-minted token file is read on every
+// call; `addr` may be a function too (the API passes the active node).
+export function scimClient({ addr, namespace, token, fetch: f = fetch, timeoutMs = 10_000 }) {
   async function call(method, path, body, what) {
-    const res = await f(`${base}/${path}`, {
-      method,
-      headers: { "X-Vault-Token": token(), "Content-Type": "application/scim+json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(10_000),
-    });
-    const text = await res.text();
+    const a = typeof addr === "function" ? await addr() : addr;
+    const base = `${a.replace(/\/$/, "")}/v1/${namespace}/identity/scim/v2`;
+    const { res, text } = await fetchWithTimeout(
+      f,
+      `${base}/${path}`,
+      {
+        method,
+        headers: { "X-Vault-Token": token(), "Content-Type": "application/scim+json" },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      },
+      timeoutMs,
+      what,
+    );
     let json = null;
     try { json = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
     if (!res.ok) throw new ScimError(res.status, json?.detail ?? json?.errors?.[0] ?? text.slice(0, 200), what);

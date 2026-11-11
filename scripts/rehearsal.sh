@@ -38,7 +38,7 @@ step() {
 direct() {
   local code err
   vault_cluster
-  code=$(curl -sS -o "$OUT" -w '%{http_code}' --cacert "$VAULT_CACERT" -X "$4" -H "X-Vault-Token: $3" \
+  code=$(vcurl "$3" -sS -o "$OUT" -w '%{http_code}' --cacert "$VAULT_CACERT" -X "$4" \
     ${6:+-H 'content-type: application/json' -d "$6"} "$VAULT_ADDR/v1/$NS/$5" || echo 000)
   err=$(jq -r '.errors[0] // .detail // empty' "$OUT" 2>/dev/null | tr '\n\t' '  ' | tr -s ' ' || true)
   if [ "$code" = "$7" ] && [[ "$err" =~ ${8:-.*} ]]; then row "$1" "$2" yes "$code | $err"; else row "$1" "$2" no "$code | $err"; fi

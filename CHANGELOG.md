@@ -12,7 +12,7 @@
   reconciled from `config/roster.json` (`make roster`).
 - The console (Node 24 API, React 19, Vault daylight glass): The Rule and
   three chapters, the Ledger from three audit logs, Layers.
-- `make probe` (82 cases), `make rehearsal` (50), `make verify` (72),
-  `make boundary` (64), `make test-ui` (24 with axe).
+- `make probe` (83 cases), `make rehearsal` (50), `make verify` (72),
+  `make boundary` (66), `make test-ui` (24 with axe), 52 unit tests.
 - `make up` and `make down` work from the Lab Index (`RUNTIME=podman`); `make
   up` builds the lab on its first run.

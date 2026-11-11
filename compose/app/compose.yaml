@@ -49,6 +49,7 @@ services:
       BUILD_DIR: /build
       SESSION_IDLE_SECONDS: "${VGOV_SESSION_IDLE}"
       CONSOLE_URL: https://localhost:${VGOV_PORT_WEB}
+      VAULT_UI_URL: https://localhost:${VGOV_PORT_VAULT_1}
       NODE_EXTRA_CA_CERTS: /etc/vgov/ca-chain.pem
     ports: ["127.0.0.1:${VGOV_PORT_API}:3000"]
     volumes:

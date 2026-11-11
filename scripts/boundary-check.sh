@@ -60,7 +60,7 @@ for check in "${checks[@]}"; do
     continue
   fi
   if [ "$cluster" = seal ]; then vault_node vault-s; else vault_cluster; fi
-  caps=$(curl -sS --cacert "$VAULT_CACERT" -H "X-Vault-Token: $(cat "$file")" \
+  caps=$(vcurl "$(cat "$file")" -sS --cacert "$VAULT_CACERT" \
     -X POST -d "{\"paths\":[\"$path\"]}" "$VAULT_ADDR/v1/sys/capabilities-self" |
     jq -r --arg p "$path" 'if .errors then "ERROR" else ((.data // .)[$p] // [] | join(",")) end')
   mode=${expect%%:*}
@@ -111,6 +111,8 @@ people_checks=(
   "console|transit/sign/release-signing|deny:update"
   "console|transit/keys/release-signing/algorithm|deny:update"
   "console|identity/scim/v2/Users|deny:create"
+  "console|identity/entity/name/scim-hr|deny:read"
+  "console|identity/entity/id/any|deny:read"
   "scim-hr|identity/scim/v2/Users|allow:create"
   "scim-hr|identity/scim/v2/Groups/x|allow:patch"
   "scim-hr|kv/data/breakglass/lock-gates|deny:read"
@@ -135,10 +137,10 @@ for check in "${people_checks[@]}"; do
     revoke=true
     ;;
   esac
-  caps=$(curl -sS --cacert "$VAULT_CACERT" -H "X-Vault-Token: $tok" -H "X-Vault-Namespace: $ns" \
+  caps=$(vcurl "$tok" -sS --cacert "$VAULT_CACERT" -H "X-Vault-Namespace: $ns" \
     -X POST -d "{\"paths\":[\"$path\"]}" "$VAULT_ADDR/v1/sys/capabilities-self" |
     jq -r --arg p "$path" 'if .errors then "ERROR" else ((.data // .)[$p] // [] | join(",")) end')
-  [ "$revoke" = false ] || curl -sS -o /dev/null --cacert "$VAULT_CACERT" -H "X-Vault-Token: $tok" -H "X-Vault-Namespace: $ns" \
+  [ "$revoke" = false ] || vcurl "$tok" -sS -o /dev/null --cacert "$VAULT_CACERT" -H "X-Vault-Namespace: $ns" \
     -X POST "$VAULT_ADDR/v1/auth/token/revoke-self" || true
   unset tok
   mode=${expect%%:*}

@@ -21,7 +21,7 @@ for t in $targets; do
     node "$VGOV_ROOT/scripts/story-check.js" >/dev/null
     node --input-type=module -e "import { readFileSync, writeFileSync } from 'node:fs'; import { publicStory } from '$VGOV_ROOT/api/lib/story.js'; writeFileSync('$ctx/config/story.json', JSON.stringify(publicStory(JSON.parse(readFileSync('$VGOV_ROOT/config/story.json', 'utf8'))), null, 2));"
     cp "$VGOV_ROOT/config/roster.json" "$ctx/config/"
-    ! grep -q "$(jq -r .breakglass.fields.recovery_code "$VGOV_ROOT/config/story.json")" -r "$ctx" || die "app-build: the break-glass value reached the API image"
+    ! grep -rqF "$(jq -r .breakglass.fields.recovery_code "$VGOV_ROOT/config/story.json")" "$ctx" || die "app-build: the break-glass value reached the API image"
     ;;
   web)
     rsync -a --exclude node_modules --exclude dist --exclude test --exclude '._*' --exclude .DS_Store "$VGOV_ROOT/web/" "$ctx/"

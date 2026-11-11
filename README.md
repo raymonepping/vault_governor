@@ -45,8 +45,11 @@ Full story: [docs/STORY.md](docs/STORY.md).
 
 ## Prerequisites
 
-- macOS on Apple Silicon, Podman 6 with a running machine (8 GiB or more),
-  about 3 GB of disk for the images and volumes.
+- macOS on Apple Silicon, Podman 6 with a running machine (8 GiB or more).
+  Disk: about 1.2 GB for the images and volumes (measured 2026-11-11:
+  vault-enterprise 571 MB, the api and web images 234 MB, node, nginx and
+  alpine 241 MB, the volumes 140 MB), plus Playwright's Chromium for
+  `make test-ui`.
 - Terraform 1.14, ansible-core 2.21, Node 24 or later, `jq`, `openssl`,
   `shellcheck` (for `make lint`).
 - A Vault Enterprise licence with Namespaces, Control Groups and Sentinel:
@@ -84,9 +87,9 @@ make doctor            # what is wrong, and which command fixes it
 | --- | --- |
 | `make verify` | 72 checks: the cluster, the platform, the stage, the app, the console, the token boundary, drift, idempotency, a secret scan and `make rehearsal` |
 | `make rehearsal` | 50 cases through the console: every chapter and every way it must fail |
-| `make boundary` | 64 checks: each tool token and each person may do their job and nothing else |
+| `make boundary` | 66 checks: each tool token and each person may do their job and nothing else |
 | `make test-ui` | 24 Playwright tests: the three chapters, axe WCAG 2.1 AA on every page (desktop and phone), TLS and CSP |
-| `make probe` | 82 cases in a scratch namespace: what Vault 2.2.1 actually does |
+| `make probe` | 83 cases in a scratch namespace: what Vault 2.2.1 actually does |
 | `make test-unit`, `make lint` | unit tests and static checks, no stack needed |
 
 ## Ports (127.0.0.1)

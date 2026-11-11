@@ -16,7 +16,7 @@ on purpose. Everything here is a local lab on one Mac.
 | A read needs a ticket; the key may only become ML-DSA-65 | EGPs, `hard-mandatory` | `make rehearsal` R4, R5, R17 to R19 |
 | The SCIM client manages only its own users and group, only through SCIM | SCIM token type, `gov-scim`, client ownership | `make rehearsal` R46, R47; `make boundary` |
 | The console cannot read the value, approve, sign or change a key | `gov-console` | `make rehearsal` R48, R49; `make boundary` |
-| Browser to API | session cookie (HttpOnly, Secure, SameSite=Strict), cross-site and foreign-origin writes refused, sign-in rate limit | `make rehearsal` R2, R3; `make test-ui` |
+| Browser to API | session cookie (HttpOnly, Secure, SameSite=Strict), cross-site and foreign-origin writes refused, sign-in limited to 10 a minute for the console (every sign-in arrives from nginx, so one bucket) | `make rehearsal` R2, R3; `make test-ui` |
 
 ## Shortcuts, on purpose
 
@@ -33,6 +33,15 @@ on purpose. Everything here is a local lab on one Mac.
 - **The ledger's chapter guess.** The audit log names no accessor for a held
   request, so the ledger gives each approval to the latest held request
   without one. Right while one request is played at a time.
+
+## Headers
+
+The console sends a Content-Security-Policy without inline scripts or
+styles, `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`.
+It sends **no** `Strict-Transport-Security`, on purpose: HSTS for
+`localhost` would make the browser force https on every localhost port, and
+the other labs on this Mac serve plain http. The console listens on
+127.0.0.1 only.
 
 ## What is synthetic
 

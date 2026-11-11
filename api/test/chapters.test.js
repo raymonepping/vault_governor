@@ -65,6 +65,17 @@ test("chapter I end to end: refused, held, approved twice, released", async () =
   assert.equal(calls.at(-1).body.token, "WRAP-SECRET");
 });
 
+test("playing a chapter again starts a fresh request: nothing opened yet", async () => {
+  const { ch, s } = setup();
+  await ch.run(s, "second-key", "read", { ticket: "HAR-0417" });
+  await ch.run(s, "second-key", "approve", { as: "ines" });
+  await ch.run(s, "second-key", "approve", { as: "kofi" });
+  await ch.run(s, "second-key", "open");
+  assert.equal((await ch.state(s, "second-key")).opened, 1);
+  await ch.run(s, "second-key", "read", { ticket: "HAR-0417" });
+  assert.equal((await ch.state(s, "second-key")).opened, 0);
+});
+
 test("no step ever hands the browser a wrapping token", async () => {
   const { ch, s } = setup();
   const outs = [await ch.run(s, "second-key", "read", { ticket: "HAR-0417" }), await ch.run(s, "second-key", "approve", { as: "ines" }), await ch.state(s, "second-key")];

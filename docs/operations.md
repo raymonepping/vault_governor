@@ -57,6 +57,6 @@ same without a root token.
 
 ## Measuring Vault again
 
-`make probe` runs 82 cases in a scratch namespace on the 4h probe token that
+`make probe` runs 83 cases in a scratch namespace on the 4h probe token that
 bootstrap mints, and rewrites `docs/capabilities.md`. After four hours the
 probe token is gone: re-mint it with the root-regen cycle above.

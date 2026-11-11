@@ -19,6 +19,8 @@ vault_active
 vault_token ansible-platform
 vault operator raft snapshot save "$dest/cluster.snap"
 unset VAULT_TOKEN
-tar -C "$VGOV_ROOT" -czf "$dest/secrets.tgz" .secrets
+# Not .secrets/legacy (credentials of a cluster clean-slate removed) and not
+# Terraform's provider cache (a re-downloadable binary).
+tar -C "$VGOV_ROOT" --exclude '.secrets/legacy' --exclude '*/.terraform' -czf "$dest/secrets.tgz" .secrets
 echo "backup: $dest (vault-s.snap, cluster.snap, secrets.tgz)"
 du -sh "$dest" | awk '{print "backup: " $1}'

@@ -15,14 +15,14 @@
 //   GET  /api/layers                     phases and gates (.build/)
 import http from "node:http";
 import { readFileSync } from "node:fs";
-import { call, ns, VaultError, VAULT_NODES, nodeHealth, tokenPresent, consoleToken } from "./lib/vault.js";
+import { call, ns, activeAddr, VaultError, VAULT_NODES, nodeHealth, tokenPresent, consoleToken } from "./lib/vault.js";
 import * as session from "./lib/session.js";
 import * as people from "./lib/people.js";
 import { said } from "./lib/said.js";
 import { createRate } from "./lib/rate.js";
 import { createLedger } from "./lib/ledger.js";
 import { loadStory, readStage, StoryError } from "./lib/story.js";
-import { scimClient } from "./lib/scim.js";
+import { scimClient, ScimError } from "./lib/scim.js";
 import { verify } from "./lib/verify.js";
 import { createChapters } from "./lib/chapters.js";
 
@@ -35,11 +35,25 @@ const roster = JSON.parse(readFileSync(process.env.ROSTER_FILE || "/app/config/r
 const signInRate = createRate({ max: 10, windowMs: 60_000 });
 const ledger = createLedger();
 const sessions = session.createSessions({ login: session.vaultLogin, revoke: session.vaultRevoke });
-const scim = scimClient({
-  addr: process.env.SCIM_ADDR || VAULT_NODES[0],
-  namespace: process.env.VGOV_NAMESPACE || "governor",
-  token: () => readFileSync(SCIM_TOKEN_FILE, "utf8").trim(),
-});
+// The SCIM token (D13), read per call; a missing one says how to fix it.
+function scimToken(file = SCIM_TOKEN_FILE) {
+  let t = "";
+  try {
+    t = readFileSync(file, "utf8").trim();
+  } catch (e) {
+    throw new VaultError(503, `the SCIM token is not readable (${file}): ${e.code || e.message}; run make people`);
+  }
+  if (!t) throw new VaultError(503, `the SCIM token file is empty (${file}); run make people`);
+  return t;
+}
+const scimPresent = () => {
+  try {
+    return scimToken().length > 0;
+  } catch {
+    return false;
+  }
+};
+const scim = scimClient({ addr: activeAddr, namespace: process.env.VGOV_NAMESPACE || "governor", token: () => scimToken() });
 const chapters = createChapters({ call, ns, consoleToken, people, scim, roster, story, readStage, verify, said });
 
 class BadRequest extends StoryError {
@@ -98,15 +112,16 @@ const routes = {
   "GET /api/health": async () => {
     const nodes = await Promise.all(VAULT_NODES.map(nodeHealth));
     const logs = ledger.status();
-    const ok = nodes.some((n) => n.reachable && !n.sealed) && tokenPresent();
-    return { ok, nodes, console_token: tokenPresent(), audit_logs: logs };
+    const ok = nodes.some((n) => n.reachable && !n.sealed) && tokenPresent() && scimPresent();
+    return { ok, nodes, console_token: tokenPresent(), scim_token: scimPresent(), audit_logs: logs, vaultUi: process.env.VAULT_UI_URL || null };
   },
 
   "GET /api/story": async () => ({ story }),
 
   "POST /api/session": async (req, res) => {
-    const ip = req.socket.remoteAddress || "?";
-    const t = signInRate.take(ip);
+    // Keyed on the peer address. Every console sign-in arrives from nginx,
+    // so in practice this is one bucket for the console: 10 a minute.
+    const t = signInRate.take(req.socket.remoteAddress || "?");
     if (!t.ok) throw new StoryError(429, `too many sign-in attempts; wait ${Math.ceil(t.retryAfterMs / 1000)} s`);
     const b = await readBody(req);
     if (typeof b.username !== "string" || typeof b.password !== "string" || !b.password || b.password.length > 256)
@@ -196,7 +211,10 @@ export const server = http.createServer(async (req, res) => {
     if (e instanceof session.Unauthenticated) return send(res, 401, { ok: false, error: e.message });
     if (e instanceof session.Refused) return send(res, e.status, { ok: false, error: e.message });
     if (e instanceof StoryError) return send(res, e.status, { ok: false, error: e.message });
-    if (e?.name === "ScimError") return send(res, 502, { ok: false, error: `the HR system (SCIM): ${e.message}` });
+    if (e instanceof ScimError) {
+      console.error(`[governor-api] ${req.method} ${url.pathname}: SCIM ${e.message}`);
+      return send(res, 502, { ok: false, error: `the HR system (SCIM): ${e.message}` });
+    }
     if (e instanceof VaultError) return send(res, 502, { ok: false, error: e.message });
     console.error(`[governor-api] ${req.method} ${url.pathname}:`, e?.stack || e);
     return send(res, 500, { ok: false, error: "internal error" });

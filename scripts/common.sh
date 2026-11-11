@@ -150,6 +150,19 @@ vault_list_json() {
   jq -c 'if type == "array" then . else [] end' <<<"${o:-[]}" 2>/dev/null || echo '[]'
 }
 
+# vcurl <token|-> <curl args...>: curl with X-Vault-Token from a config read
+# on a file descriptor, never on curl's command line (ps shows every argv).
+# printf is a builtin: the token is never an argument of a new process.
+vcurl() {
+  local tok=$1
+  shift
+  if [ "$tok" = - ]; then
+    curl "$@"
+  else
+    curl -K <(printf 'header = "X-Vault-Token: %s"\n' "$tok") "$@"
+  fi
+}
+
 info() { printf '\033[32m%s\033[0m\n' "$*" >&2; }
 die() {
   printf '\033[31m%s\033[0m\n' "$*" >&2

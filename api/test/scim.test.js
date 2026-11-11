@@ -96,6 +96,20 @@ test("a refusal carries Vault's answer and the action", async () => {
   await assert.rejects(reconcile(client(v, "wrong"), roster), (e) => e instanceof ScimError && e.status === 403 && /find user ines: HTTP 403: permission denied/.test(e.message));
 });
 
+test("a refusal is a ScimError by name (the API's handler depends on it)", async () => {
+  const v = fakeVault();
+  const e = await client(v, "wrong").findUser("ines").catch((x) => x);
+  assert.equal(e.name, "ScimError");
+});
+
+test("a hung connection times out with a ScimError, never hangs", async () => {
+  const hang = (url, { signal }) => new Promise((_, reject) => signal.addEventListener("abort", () => reject(signal.reason)));
+  const c = scimClient({ addr: () => "https://vault:8200", namespace: "governor", token: () => "t", fetch: hang, timeoutMs: 50 });
+  const e = await c.listUsers().catch((x) => x);
+  assert.equal(e.name, "ScimError");
+  assert.equal(e.status, 504);
+});
+
 test("the filter is URL-encoded userName eq", async () => {
   const v = fakeVault();
   await client(v).findUser("ines");

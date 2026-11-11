@@ -8,10 +8,9 @@ api() {
   local tok=$1 method=$2 path=$3 body=${4:-} hdr=${5:-} out args=()
   out=$(mktemp)
   args=(-sS -o "$out" -w '%{http_code}' --cacert "$VAULT_CACERT" -X "$method")
-  [ "$tok" = - ] || args+=(-H "X-Vault-Token: $tok")
   [ -z "$hdr" ] || args+=(-H "$hdr")
   [ -z "$body" ] || args+=(-H 'Content-Type: application/json' -d "$body")
-  ST=$(curl "${args[@]}" "${PROBE_ADDR:-$VAULT_ADDR}/v1/$path" || echo 000)
+  ST=$(vcurl "$tok" "${args[@]}" "${PROBE_ADDR:-$VAULT_ADDR}/v1/$path" || echo 000)
   BODY=$(cat "$out")
   rm -f "$out"
   ERR=$(jq -r '.errors[0] // .data.error // empty' <<<"$BODY" 2>/dev/null | tr '\n\t' '  ' | tr -s ' ' | sed 's/ *$//' || true)

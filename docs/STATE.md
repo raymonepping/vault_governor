@@ -380,3 +380,51 @@ ash (`story.css` from 215 to about 130 lines), the 650 ms unfold and the
 - From nothing: `make clean-slate CONFIRM=DELETE && make lab`: converged in
   **118 s** with every gate green; `make verify` **72 passed** (100 s).
 - Unit tests: 46 (`make test-unit`). `make probe`: 82 passed.
+
+## Prompt 99: clean loop
+
+### Round 1 (2026-11-11), after commit 2ca7eb5
+
+Reviews: `/ponytail:ponytail-audit` (1 to 8), `/ponytail:ponytail-review`
+(9, 10), `/backend-design:audit` (11 to 14),
+`/backend-design:security-discipline` (15 to 17). Seventeen findings, all
+fixed:
+
+1. The presenter was signed out after an hour (rowan's token lived 1h):
+   every person's `token_ttl` now follows `VGOV_SESSION_IDLE` (4h), max 8h;
+   measured: cookie `Max-Age=14400`.
+2. `make probe` restored the root Control Group TTL as a hard-coded 15m: it
+   now puts back the value it read (case P10 "put back as found"); after a
+   probe both plans are empty. Probe: 83 cases.
+3. The stage-hand token cache had no test: `api/test/people.test.js` (3).
+4. The README's "about 3 GB" was a guess: measured 1.2 GB, with the parts.
+5. Dead code: `people.forgetAll`, `hooks.useAction`.
+6. The Vault UI link ignored port overrides: `/api/health` returns
+   `vaultUi` from `VAULT_UI_URL`.
+7. The sign-in limit is one bucket for the console (every sign-in arrives
+   from nginx): code comment and `docs/security-model.md` say so.
+8. `app-build`'s value check: `grep -rqF`.
+9. Playing a chapter again kept the last request's release count (a false
+   "opens once" wink): `hold()` replaces the chapter state; a test fails on
+   the old code and passes now.
+10. Tokens were on curl command lines in six scripts: `vcurl` in
+    `scripts/common.sh` sends the header from a curl config on a file
+    descriptor; `ps` shows `curl -K /dev/fd/63 ...` only.
+11. A SCIM refusal became "internal error" (`ScimError` had no `name`): the
+    API tests `instanceof`, logs the reason and returns Vault's answer (502).
+12. A missing SCIM token was a 500 and health said ok: the reader throws a
+    503 with "run make people"; `/api/health` reports `scim_token`.
+13. A SCIM call could hang forever (`AbortSignal.timeout`): the same
+    referenced `setTimeout` as `vault.js`; a test with a hanging fetch.
+14. SCIM always went to vault-1: it follows the active node.
+15. The console token could read every entity: three unused paths removed;
+    two new deny rows (`make boundary`: 66).
+16. Backups copied `.secrets/legacy` and the provider cache (82 MB): both
+    excluded (1.1 MB).
+17. No HSTS, and no reason given: the reason is in the nginx template and
+    `docs/security-model.md` (HSTS on localhost would force https on every
+    other lab's port).
+
+Results: unit tests 52 (scripts 7, API 42, web 3); `make lint` clean;
+`make boundary` 66; `make probe` 83; `make verify` **72 passed**;
+`make test-ui` **24 passed**; `make tf-plan-all` empty.

@@ -37,8 +37,8 @@ declare -A TOK ENT SID
 scim() {
   local out
   out=$(mktemp)
-  ST=$(curl -sS -o "$out" -w '%{http_code}' --cacert "$VAULT_CACERT" -X "$1" \
-    -H "X-Vault-Token: $SCIM_TOKEN" -H 'Content-Type: application/scim+json' \
+  ST=$(vcurl "$SCIM_TOKEN" -sS -o "$out" -w '%{http_code}' --cacert "$VAULT_CACERT" -X "$1" \
+    -H 'Content-Type: application/scim+json' \
     ${3:+-d "$3"} "$VAULT_ADDR/v1/$NS/identity/scim/v2/$2" || echo 000)
   BODY=$(cat "$out")
   rm -f "$out"
@@ -240,7 +240,9 @@ api "$T" GET "$NS/sys/config/control-group"
 row P10 I "GET <ns>/sys/config/control-group" "recorded" "HTTP $ST${ERR:+: $ERR}" yes
 api "$T" GET sys/config/control-group
 row P10 I "GET sys/config/control-group (root)" "recorded" "HTTP $ST${ERR:+: $ERR} $(jq -c '.data // empty' <<<"$BODY")" yes
+# Terraform owns the root config: remember it and put it back exactly.
 ROOT_CG=$ST
+ROOT_TTL=$(jq -r '.data.max_ttl // empty' <<<"$BODY")
 api "$T" PUT "$NS/sys/config/control-group" '{"max_ttl":"15m"}'
 row P10 I "PUT <ns>/sys/config/control-group max_ttl=15m" "recorded (root only?)" "HTTP $ST${ERR:+: $ERR}" yes
 api "$T" PUT sys/config/control-group '{"max_ttl":"15m"}'
@@ -255,7 +257,9 @@ request rowan
 wttl=$(jq -r '.wrap_info.ttl // empty' <<<"$BODY")
 row P10 I "held request's wrap_info.ttl with ns=7m, root=11m" "the config that applies" "ttl=${wttl}s ($([ "$wttl" = 420 ] && echo namespace || { [ "$wttl" = 660 ] && echo root || echo neither; }))" yes
 api "$T" PUT "$NS/sys/config/control-group" '{"max_ttl":"15m"}'
-if [ "$ROOT_CG" = 404 ]; then api "$T" DELETE sys/config/control-group; else api "$T" PUT sys/config/control-group '{"max_ttl":"15m"}'; fi
+if [ "$ROOT_CG" = 404 ] || [ -z "$ROOT_TTL" ]; then api "$T" DELETE sys/config/control-group
+else api "$T" PUT sys/config/control-group "$(jq -n --argjson t "$ROOT_TTL" '{max_ttl: $t}')"; fi
+row P10 I "the root config put back as found" "${ROOT_TTL:-absent}" "HTTP $ST" "$([[ "$ST" =~ ^20 ]] && echo yes || echo no)"
 
 # ── An approval and the approver's token (found in prompt 06) ─────────────────
 request rowan

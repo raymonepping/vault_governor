@@ -44,7 +44,9 @@ export function createChapters(deps) {
   };
   const hold = (s, ch, r, extra = {}) => {
     const wi = r.json?.wrap_info;
-    if (r.ok && wi?.accessor) s.state[ch] = { ...(s.state[ch] || {}), accessor: wi.accessor, token: wi.token, ttl: wi.ttl, at: new Date().toISOString(), ...extra };
+    // A new held request replaces the chapter's state: nothing of the last
+    // one (its release count) may describe this one.
+    if (r.ok && wi?.accessor) s.state[ch] = { accessor: wi.accessor, token: wi.token, ttl: wi.ttl, at: new Date().toISOString(), ...extra };
     return Boolean(wi?.accessor);
   };
 

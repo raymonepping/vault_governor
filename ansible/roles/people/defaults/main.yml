@@ -4,3 +4,8 @@ people_token: "{{ lookup('ansible.builtin.file', vgov_tokens_dir + '/ansible-pla
 # less than a week is left. The console token is periodic (24h, the API renews).
 people_scim_ttl: 720h
 people_scim_min_left: 604800
+# A person's token lives as long as the console session may idle (D11): the
+# presenter's session ends with rowan's token, and a keyholder's approval
+# with theirs (probe P27). The max allows one renewal-free long day.
+people_token_ttl: "{{ vgov_session_idle }}"
+people_token_max_ttl: "{{ vgov_session_idle | int * 2 }}"

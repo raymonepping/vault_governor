@@ -22,6 +22,9 @@ server {
   add_header X-Content-Type-Options nosniff always;
   add_header Referrer-Policy no-referrer always;
   add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'" always;
+  # No Strict-Transport-Security, on purpose: HSTS for "localhost" would
+  # force https on every localhost port, and the other labs on this Mac
+  # serve plain http (docs/security-model.md).
 
   root  /usr/share/nginx/html;
   index index.html;

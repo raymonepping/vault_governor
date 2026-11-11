@@ -63,34 +63,6 @@ export function useResource(
   return { ...state, reload: load };
 }
 
-// An action button's lifecycle: busy while running, last result or error.
-export function useAction(fn) {
-  const [state, setState] = useState({
-    busy: false,
-    result: null,
-    error: null,
-  });
-  const run = useCallback(
-    async (...args) => {
-      setState((s) => ({ ...s, busy: true, error: null }));
-      try {
-        const result = await fn(...args);
-        setState({ busy: false, result, error: null });
-        return result;
-      } catch (error) {
-        setState((s) => ({ busy: false, result: s.result, error }));
-        return null;
-      }
-    },
-    [fn],
-  );
-  const clear = useCallback(
-    () => setState({ busy: false, result: null, error: null }),
-    [],
-  );
-  return { ...state, run, clear };
-}
-
 export function useVaultLog() {
   const [entries, setEntries] = useState([]);
   useEffect(() => subscribeLog(setEntries), []);

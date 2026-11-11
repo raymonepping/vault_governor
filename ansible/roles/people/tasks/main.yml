@@ -46,8 +46,8 @@
     body:
       password: "{{ people_passwords[item.item.user] }}"
       token_policies: ["{{ item.item.policy }}"]
-      token_ttl: 3600
-      token_max_ttl: 14400
+      token_ttl: "{{ people_token_ttl | int }}"
+      token_max_ttl: "{{ people_token_max_ttl | int }}"
     status_code: [204]
   loop: "{{ people_users.results }}"
   loop_control:
@@ -66,8 +66,8 @@
     body_format: json
     body:
       token_policies: ["{{ item.item.policy }}"]
-      token_ttl: 3600
-      token_max_ttl: 14400
+      token_ttl: "{{ people_token_ttl | int }}"
+      token_max_ttl: "{{ people_token_max_ttl | int }}"
     status_code: [204]
   loop: "{{ people_users.results }}"
   loop_control:
@@ -75,7 +75,7 @@
   when: >-
     item.status == 200 and (
     (item.json.data.token_policies | sort) != [item.item.policy] or
-    item.json.data.token_ttl != 3600 or item.json.data.token_max_ttl != 14400)
+    item.json.data.token_ttl != (people_token_ttl | int) or item.json.data.token_max_ttl != (people_token_max_ttl | int))
   changed_when: true
   no_log: true
 

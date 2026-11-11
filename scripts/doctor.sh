@@ -15,7 +15,7 @@ fix() { # <problem> <command>
 }
 running() { [ "$(vgov_container_state "$1")" = running ]; }
 api() { # <token file> <path>: GET on the cluster, JSON or nothing
-  curl -sf --cacert "$VAULT_CACERT" -H "X-Vault-Token: $(cat "$1" 2>/dev/null)" "$VAULT_ADDR/v1/$2" 2>/dev/null
+  vcurl "$(cat "$1" 2>/dev/null)" -sf --cacert "$VAULT_CACERT" "$VAULT_ADDR/v1/$2" 2>/dev/null
 }
 days_left() { echo $((($(date -j -u -f '%Y-%m-%dT%H:%M:%S' "${1%%.*}" +%s 2>/dev/null || echo 0) - $(date +%s)) / 86400)); }
 

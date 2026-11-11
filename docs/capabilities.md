@@ -11,7 +11,7 @@ deleted afterwards. Every answer is Vault's, verbatim. The design of prompts
 04 to 07 follows these answers; where they differ from the brief, the brief's
 decision was changed (docs/STATE.md says which).
 
-Result: 82 passed, 0 failed, in 14s.
+Result: 83 passed, 0 failed, in 14s.
 
 ## Answers (measured 2026-11-11; the table below is this run's evidence)
 
@@ -82,7 +82,7 @@ Result: 82 passed, 0 failed, in 14s.
 | P6 | III | `userpass login of ines resolves to the SCIM entity` | same entity id | same entity  | yes |
 | P6 | III | `userpass login of kofi resolves to the SCIM entity` | same entity id | same entity  | yes |
 | P6 | III | `userpass login of mara resolves to the SCIM entity` | same entity id | same entity  | yes |
-| P5 | III | `SCIM GET of an entity the client did not create (rowan)` | not visible | HTTP 404: entity "88814b69-945e-840c-6b38-bbb06dc6379b" not found  | yes |
+| P5 | III | `SCIM GET of an entity the client did not create (rowan)` | not visible | HTTP 404: entity "b5adaccc-c637-cc40-dcaf-8eed4ac12543" not found  | yes |
 | P7 | I | `rowan reads kv/data/breakglass/lock-gates` | held: wrap_info, no data | HTTP 200  | yes |
 | P7 | I | `sys/control-group/request as rowan` | approved=false | HTTP 200  | yes |
 | P8 | I | `rowan approves own request (not in group, no policy)` | refused | HTTP 403: 1 error occurred: * permission denied  | yes |
@@ -98,9 +98,10 @@ Result: 82 passed, 0 failed, in 14s.
 | P10 | I | `PUT <ns>/sys/config/control-group max_ttl=15m` | recorded (root only?) | HTTP 204  | yes |
 | P10 | I | `PUT sys/config/control-group max_ttl=15m (root)` | accepted | HTTP 204  | yes |
 | P10 | I | `held request's wrap_info.ttl with ns=7m, root=11m` | the config that applies | ttl=660s (root)  | yes |
+| P10 | I | `the root config put back as found` | 900 | HTTP 204  | yes |
 | P27 | I | `revoke the approver's token after two approvals` | recorded: does the approval stay? | before 2 approvals; after revoke-self of kofi's token: {"approved":false,"n":1}  | yes |
 | P11 | I | `EGP on kv/data/breakglass/* (namespaced, hard-mandatory)` | 204 | HTTP 204  | yes |
-| P11 | I | `(a) read without ?ticket` | refused by the EGP | HTTP 403: 2 errors occurred: * egp standard policy "JRUVt/p-ticket" evaluation resulted in denial. The specific error was: <nil> A trace of the execution for policy "JRUVt/p-ticket" is available: Result: false Descriptio | yes |
+| P11 | I | `(a) read without ?ticket` | refused by the EGP | HTTP 403: 2 errors occurred: * egp standard policy "2tsYJ/p-ticket" evaluation resulted in denial. The specific error was: <nil> A trace of the execution for policy "2tsYJ/p-ticket" is available: Result: false Descriptio | yes |
 | P11 | I | `(a) read with ?ticket=HAR-0417 (request.data)` | held (passes the EGP) | HTTP 200  | yes |
 | P12 | I | `two approvals on the ticketed request` | approved=true | HTTP 200  | yes |
 | P12 | I | `unwrap of an approved, ticketed request (EGP on replay)` | the value | HTTP 200  | yes |
@@ -108,8 +109,8 @@ Result: 82 passed, 0 failed, in 14s.
 | P13 | II | `rowan signs the manifest with v1 (ecdsa-p256)` | vault:v1 | HTTP 200  | yes |
 | P13 | II | `algorithm change signing -> aes256-gcm96 (probe token, no EGP yet)` | refused by Vault (usage) | HTTP 400: incompatible algorithm aes256-gcm96 for key type ecdsa-p256  | yes |
 | P14 | II | `EGP on transit/keys/sig/algorithm` | 204 | HTTP 204  | yes |
-| P14 | II | `rowan asks for ecdsa-p384 (not the approved target)` | refused by the EGP | HTTP 403: 2 errors occurred: * egp standard policy "JRUVt/p-algorithm" evaluation resulted in denial. The specific error was: <nil> A trace of the execution for policy "JRUVt/p-algorithm" is available: Result: false Desc | yes |
-| P14 | II | `rowan asks for aes256-gcm96` | refused by the EGP (before Vault's usage rule) | HTTP 403: 2 errors occurred: * egp standard policy "JRUVt/p-algorithm" evaluation resulted in denial. The specific error was: <nil> A trace of the execution for policy "JRUVt/p-algorithm" is available: Result: false Desc | yes |
+| P14 | II | `rowan asks for ecdsa-p384 (not the approved target)` | refused by the EGP | HTTP 403: 2 errors occurred: * egp standard policy "2tsYJ/p-algorithm" evaluation resulted in denial. The specific error was: <nil> A trace of the execution for policy "2tsYJ/p-algorithm" is available: Result: false Desc | yes |
+| P14 | II | `rowan asks for aes256-gcm96` | refused by the EGP (before Vault's usage rule) | HTTP 403: 2 errors occurred: * egp standard policy "2tsYJ/p-algorithm" evaluation resulted in denial. The specific error was: <nil> A trace of the execution for policy "2tsYJ/p-algorithm" is available: Result: false Desc | yes |
 | P15 | II | `rowan asks for ml-dsa 65` | held: wrap_info | HTTP 200  | yes |
 | P15 | II | `key after the request` | still v1 | HTTP 200  | yes |
 | P15 | II | `key after one approval` | still v1 | HTTP 200  | yes |
@@ -124,7 +125,7 @@ Result: 82 passed, 0 failed, in 14s.
 | P18 | II | `Node verifies v1 (ECDSA P-256, public key from GET keys)` | valid | {"keyType":"ec","format":"pem","sigBytes":72,"valid":true}  | yes |
 | P18 | II | `Node verifies v2 (ML-DSA-65, exported raw key in SPKI)` | recorded: the compatibility result | {"keyType":"ml-dsa-65","format":"raw 1952 bytes","sigBytes":3309,"valid":true}  | yes |
 | P19 | III | `mara approves R0 (before leaving)` | accepted | HTTP 200  | yes |
-| P20 | III | `SCIM PATCH group: remove mara` | 2xx | HTTP 204 (form: members[value eq "580cac47-a54f-6f3e-f003-de6dfe69ea23"])  | yes |
+| P20 | III | `SCIM PATCH group: remove mara` | 2xx | HTTP 204 (form: members[value eq "0698f11a-23e4-e0a6-ab59-0911863481a9"])  | yes |
 | P20 | III | `Vault's group after the PATCH` | 2 members | HTTP 200  | yes |
 | P21 | III | `A(a) mara's old token, lookup-self` | recorded | HTTP 200  | yes |
 | P21 | III | `A(c) mara (old token) approves the pending R1` | recorded | HTTP 200 approved=n/a  | yes |
@@ -144,24 +145,24 @@ Result: 82 passed, 0 failed, in 14s.
 | P25 | III | `SCIM PATCH user replace userName` | recorded (docs: only active) | HTTP 204  | yes |
 | P25 | III | `admin writes members of a SCIM group (identity API)` | refused (SCIM owns it) | HTTP 400: cannot modify SCIM-managed field(s) "member_entity_ids" through the API  | yes |
 | P26 | Ledger | `enable an audit device inside a namespace` | recorded (root only?) | HTTP 404: 1 error occurred: * unsupported path  | yes |
-| P26 | Ledger | `root audit device logs namespaced requests (request.namespace.path)` | entries on some node | vault-1=0 vault-2=0 vault-3=4   | yes |
+| P26 | Ledger | `root audit device logs namespaced requests (request.namespace.path)` | entries on some node | vault-1=4 vault-2=0 vault-3=0   | yes |
 
 ## Notes
 
 - Licence features: HSM, Performance Replication, DR Replication, MFA, Sentinel, Seal Wrapping, Control Groups, Performance Standby, Namespaces, KMIP, Entropy Augmentation, Transform Secrets Engine, Lease Count Quotas, Key Management Secrets Engine, Automated Snapshots, Key Management Transparent Data Encryption, Secrets Sync, Secrets Import, Oracle Database Secrets Engine, Azure Secrets Engine, SPIFFE Auth Engine, SPIFFE Secrets Engine, OpenLDAP Secrets Engine, PKI External CA Secrets Engine, Okta Auth Engine, Consumption Billing, Agentic IAM.
-- SCIM client config as read back: {"alias_mount_accessor":"auth_userpass_3f275b28","allow_group_adoption":false,"allow_user_adoption":false,"allowed_extra_alias_mount_accessors":null,"client_id":"db2047bb-08a1-45a4-6129-219ca0049156","client_name":"hr","default_schema_version":"2.2","deleting":false,"max_active_tokens":2,"max_token_ttl":0}
+- SCIM client config as read back: {"alias_mount_accessor":"auth_userpass_7a8b6083","allow_group_adoption":false,"allow_user_adoption":false,"allowed_extra_alias_mount_accessors":null,"client_id":"2489f234-4c2f-bf76-1360-d6284f37f7c0","client_name":"hr","default_schema_version":"2.2","deleting":false,"max_active_tokens":2,"max_token_ttl":0}
 - SCIM token: type scim, renewable false, orphan true, TTL 3600 s, entity = scim-hr.
 - Raw SCIM create of a user without active: HTTP 201.
 - SCIM group as Vault reads it: type internal, 3 members, policies null.
 - jonas's approval answer: HTTP 200 {"approved":false}.
-- After ines x2 and jonas: {"approved":false,"authorizations":["ines","entity_9488767d"]}.
+- After ines x2 and jonas: {"approved":false,"authorizations":["ines","entity_8b2dc856"]}.
 - Root Control Group config after the write: {"max_ttl":900}.
 - Revoking an approver's token: 2 approvals before, {"approved":false,"n":1} after (an approval lives as long as the approver's token).
-- Governance context mechanism that reaches Sentinel on a KV v2 read: a. EGP refusal text: 2 errors occurred: * egp standard policy "JRUVt/p-ticket" evaluation resulted in denial. The specific error was: <nil> A trace of the execution for policy "JRUVt/p-ticket" is available: Result: false Description: <none> Rule "main" (JRUVt/p-ticket:1:1) = false * permission denied.
+- Governance context mechanism that reaches Sentinel on a KV v2 read: a. EGP refusal text: 2 errors occurred: * egp standard policy "2tsYJ/p-ticket" evaluation resulted in denial. The specific error was: <nil> A trace of the execution for policy "2tsYJ/p-ticket" is available: Result: false Description: <none> Rule "main" (2tsYJ/p-ticket:1:1) = false * permission denied.
 - Unwrap with the EGP in place: HTTP 200.
 - Unwrap of the algorithm change returned: {"latest_version":2,"latest_version_type":"ml-dsa","type":"ecdsa-p256"}.
 - Key metadata after: type ecdsa-p256, latest_version_type ml-dsa, min_decryption_version 1, versions: [{"v":"1","name":"P-256","has_public_key":true},{"v":"2","name":"ml-dsa-","has_public_key":false}].
-- export/public-key v2: HTTP 200, starts 32Adqp2UDoVnu+mNmNAH2LNaKEQvga, length 2605.
+- export/public-key v2: HTTP 200, starts z3Tfcg5jD7PrfhgriPijIwmxqrHNix, length 2605.
 - export/public-key v1: HTTP 200, starts -----BEGIN PUBLIC KEY-----
 MFk.
 - Node verifier (node:24-alpine, public keys from GET transit/keys/sig): {"node":"v24.22.2","v1":{"keyType":"ec","format":"pem","sigBytes":72,"valid":true},"v2":{"keyType":"ml-dsa-65","format":"raw 1952 bytes","sigBytes":3309,"valid":true}}
@@ -172,5 +173,5 @@ MFk.
 - Mara's entity after active=false: disabled=true, still in group: true.
 - R3 after mara (disabled): {"approved":false,"by":["ines"]}.
 - After the userName PATCH, SCIM reads userName=mara2.
-- An authorize entry in the audit log (fields): {"auth":{"entity_id":true,"display_name":"probe-1794418289-auth-userpass-rowan","policies":["default","p-requestor"]},"req":{"path":"sys/control-group/authorize","operation":"update","namespace":{"id":"YmKNs","path":"probe-1794418289/"}},"resp_keys":["error"]}.
+- An authorize entry in the audit log (fields): {"auth":{"entity_id":true,"display_name":"probe-1794421469-auth-userpass-rowan","policies":["default","p-requestor"]},"req":{"path":"sys/control-group/authorize","operation":"update","namespace":{"id":"2tsYJ","path":"probe-1794421469/"}},"resp_keys":["error"]}.
 - A held read in the audit log: wrap_info keys , request.data hmac'd: .

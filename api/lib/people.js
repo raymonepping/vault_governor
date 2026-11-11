@@ -30,11 +30,11 @@ export const revoke = (token) => call(token, "POST", ns("auth/token/revoke-self"
 // as(user, fn): run fn(token) with the person's (cached) token. Returns
 // { login, result, entity }: login only when one was needed; when it is
 // refused, result is null and login carries Vault's answer.
-export async function as(user, fn, now = Date.now()) {
+export async function as(user, fn, now = Date.now(), logIn = login) {
   let c = cache.get(user);
   let l = null;
   if (!c || c.exp - 60_000 < now) {
-    l = await login(user);
+    l = await logIn(user);
     if (!l.ok) {
       cache.delete(user);
       return { login: l, result: null };
@@ -43,11 +43,4 @@ export async function as(user, fn, now = Date.now()) {
     cache.set(user, c);
   }
   return { login: l, result: await fn(c.token), entity: c.entity };
-}
-
-// After a reset: revoke every kept token (their approvals go with them).
-export async function forgetAll() {
-  const all = [...cache.values()];
-  cache.clear();
-  await Promise.all(all.map((c) => revoke(c.token)));
 }
