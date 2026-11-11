@@ -1,0 +1,188 @@
+# people: runtime identity state (D8, D11, D13, D14). Idempotent: a second run
+# reports changed=0. Every task that touches a secret is no_log.
+
+- name: Ensure .secrets/people (0700)
+  ansible.builtin.file:
+    path: "{{ vgov_root }}/.secrets/people"
+    state: directory
+    mode: "0700"
+
+# The password lookup creates each file once (0600 under the wrapper's umask)
+# and reads it afterwards; it never prints it.
+- name: Read or create each person's password
+  ansible.builtin.set_fact:
+    people_passwords: >-
+      {{ people_passwords | default({}) | combine({item.user: lookup('ansible.builtin.password',
+         vgov_root + '/.secrets/people/' + item.user, length=32, chars=['ascii_letters', 'digits'])}) }}
+  loop: "{{ people_story.people }}"
+  loop_control:
+    label: "{{ item.user }}"
+  no_log: true
+
+- name: Does each userpass user exist?
+  ansible.builtin.uri:
+    url: "{{ people_ns }}/auth/userpass/users/{{ item.user }}"
+    ca_path: "{{ vgov_ca }}"
+    headers:
+      X-Vault-Token: "{{ people_token }}"
+    status_code: [200, 404]
+  loop: "{{ people_story.people }}"
+  loop_control:
+    label: "{{ item.user }}"
+  register: people_users
+  check_mode: false
+  no_log: true
+
+# Created once with the password; afterwards only the policies are kept right.
+# (A changed password file is a clean-slate matter, not a silent reset.)
+- name: Create the missing userpass users
+  ansible.builtin.uri:
+    url: "{{ people_ns }}/auth/userpass/users/{{ item.item.user }}"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ people_token }}"
+    body_format: json
+    body:
+      password: "{{ people_passwords[item.item.user] }}"
+      token_policies: ["{{ item.item.policy }}"]
+      token_ttl: 3600
+      token_max_ttl: 14400
+    status_code: [204]
+  loop: "{{ people_users.results }}"
+  loop_control:
+    label: "{{ item.item.user }}"
+  when: item.status == 404
+  changed_when: true
+  no_log: true
+
+- name: Keep each existing user's token_policies
+  ansible.builtin.uri:
+    url: "{{ people_ns }}/auth/userpass/users/{{ item.item.user }}"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ people_token }}"
+    body_format: json
+    body:
+      token_policies: ["{{ item.item.policy }}"]
+      token_ttl: 3600
+      token_max_ttl: 14400
+    status_code: [204]
+  loop: "{{ people_users.results }}"
+  loop_control:
+    label: "{{ item.item.user }}"
+  when: >-
+    item.status == 200 and (
+    (item.json.data.token_policies | sort) != [item.item.policy] or
+    item.json.data.token_ttl != 3600 or item.json.data.token_max_ttl != 14400)
+  changed_when: true
+  no_log: true
+
+# ── The SCIM client's token (D13) ─────────────────────────────────────────────
+- name: Look up the SCIM token
+  ansible.builtin.uri:
+    url: "{{ people_ns }}/auth/token/lookup"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ people_token }}"
+    body_format: json
+    body:
+      token: "{{ lookup('ansible.builtin.file', vgov_tokens_dir + '/scim-hr', errors='ignore') | default('none', true) }}"
+    status_code: [200, 400, 403]
+  register: people_scim_lookup
+  check_mode: false
+  no_log: true
+
+- name: Decide whether the SCIM token must be re-minted
+  ansible.builtin.set_fact:
+    people_scim_mint: "{{ people_scim_lookup.status != 200 or (people_scim_lookup.json.data.ttl | int) < people_scim_min_left }}"
+    people_scim_old_accessor: "{{ lookup('ansible.builtin.file', vgov_tokens_dir + '/scim-hr.accessor', errors='ignore') | default('', true) }}"
+
+# max_active_tokens is 2: revoke the previous token before minting a new one.
+- name: Revoke the previous SCIM token
+  ansible.builtin.uri:
+    url: "{{ people_ns }}/auth/token/revoke-accessor"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ people_token }}"
+    body_format: json
+    body:
+      accessor: "{{ people_scim_old_accessor }}"
+    status_code: [204, 400, 403]
+  when: people_scim_mint | bool and people_scim_old_accessor | length > 0
+  changed_when: true
+  no_log: true
+
+- name: Mint the SCIM token (type scim, not renewable)
+  ansible.builtin.uri:
+    url: "{{ people_ns }}/auth/token/create/scim-hr"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ people_token }}"
+    body_format: json
+    body:
+      entity_alias: scim-hr
+      policies: [gov-scim]
+      type: scim
+      renewable: false
+      ttl: "{{ people_scim_ttl }}"
+      display_name: governor-hr
+    status_code: [200]
+  when: people_scim_mint | bool
+  register: people_scim_new
+  changed_when: true
+  no_log: true
+
+# ── The console's token (D14) ─────────────────────────────────────────────────
+- name: Look up the console token
+  ansible.builtin.uri:
+    url: "{{ people_ns }}/auth/token/lookup"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ people_token }}"
+    body_format: json
+    body:
+      token: "{{ lookup('ansible.builtin.file', vgov_tokens_dir + '/console', errors='ignore') | default('none', true) }}"
+    status_code: [200, 400, 403]
+  register: people_console_lookup
+  check_mode: false
+  no_log: true
+
+- name: Mint the console token (periodic, 24h)
+  ansible.builtin.uri:
+    url: "{{ people_ns }}/auth/token/create/gov-console"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers:
+      X-Vault-Token: "{{ people_token }}"
+    body_format: json
+    body:
+      policies: [gov-console]
+      display_name: governor-console
+    status_code: [200]
+  when: people_console_lookup.status != 200
+  register: people_console_new
+  changed_when: true
+  no_log: true
+
+# Truncate and write the same inode (the API mounts these files); the token
+# arrives on stdin, never argv.
+- name: Write each new token and its accessor in place (0600)
+  ansible.builtin.command:
+    argv: [sh, -c, 'umask 077; touch "$1"; chmod 600 "$1"; cat >"$1"', sh, "{{ vgov_tokens_dir }}/{{ item.file }}"]
+    stdin: "{{ item.value }}"
+    stdin_add_newline: false
+  loop:
+    - { file: scim-hr, value: "{{ people_scim_new.json.auth.client_token | default('') }}" }
+    - { file: scim-hr.accessor, value: "{{ people_scim_new.json.auth.accessor | default('') }}" }
+    - { file: console, value: "{{ people_console_new.json.auth.client_token | default('') }}" }
+  loop_control:
+    label: "{{ item.file }}"
+  when: item.value | length > 0
+  changed_when: true
+  no_log: true

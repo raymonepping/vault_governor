@@ -1,0 +1,12 @@
+# Phase 8 (ansible people): the five people's userpass logins (passwords in
+# .secrets/people/, token_policies from config/story.json), the SCIM client's
+# token and the console's token, with the ansible-platform token. Nobody logs
+# in here: the keyholders' first login must come after SCIM provisioned them
+# (phase 9, make roster), or Vault would give them a second entity (D13).
+- name: People, the SCIM token and the console token
+  hosts: localhost
+  gather_facts: false
+  vars:
+    people_story: "{{ lookup('ansible.builtin.file', vgov_root + '/config/story.json') | from_json }}"
+  roles:
+    - people

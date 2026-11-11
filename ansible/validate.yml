@@ -1,0 +1,102 @@
+# Phase 12 (ansible validate): read-only proof that the lab is ready for the
+# chapters. Every person logs in with their own password (token revoked
+# right after); each keyholder's login is the SCIM entity in
+# governor-keyholders (D13, probe P6); the stage, the rules and the Control
+# Group config are in place. Changes nothing (changed=0 every run).
+- name: Validate the stage
+  hosts: localhost
+  gather_facts: false
+  vars:
+    v_story: "{{ lookup('ansible.builtin.file', vgov_root + '/config/story.json') | from_json }}"
+    v_ns: "{{ vgov_cluster_addr }}/v1/{{ vgov_namespace }}"
+    v_headers:
+      X-Vault-Token: "{{ lookup('ansible.builtin.file', vgov_tokens_dir + '/ansible-platform') }}"
+  tasks:
+    - name: Each person logs in through userpass
+      ansible.builtin.uri:
+        url: "{{ v_ns }}/auth/userpass/login/{{ item.user }}"
+        ca_path: "{{ vgov_ca }}"
+        method: POST
+        body_format: json
+        body:
+          password: "{{ lookup('ansible.builtin.file', vgov_root + '/.secrets/people/' + item.user) }}"
+      loop: "{{ v_story.people }}"
+      loop_control:
+        label: "{{ item.user }}"
+      register: v_logins
+      check_mode: false
+      no_log: true
+
+    - name: Revoke each login token
+      ansible.builtin.uri:
+        url: "{{ v_ns }}/auth/token/revoke-self"
+        ca_path: "{{ vgov_ca }}"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ item.json.auth.client_token }}"
+        status_code: [204]
+      loop: "{{ v_logins.results }}"
+      loop_control:
+        label: "{{ item.item.user }}"
+      check_mode: false
+      changed_when: false
+      no_log: true
+
+    - name: Read the keyholder group
+      ansible.builtin.uri:
+        url: "{{ v_ns }}/identity/group/name/{{ v_story.keyholder_group }}"
+        ca_path: "{{ vgov_ca }}"
+        headers: "{{ v_headers }}"
+      register: v_group
+      check_mode: false
+
+    - name: Each keyholder's login is a member of the group; nobody else is
+      ansible.builtin.assert:
+        that:
+          - (item.json.auth.entity_id in v_group.json.data.member_entity_ids) == (item.item.source == 'scim')
+          - item.json.auth.token_policies == [item.item.policy] or item.json.auth.token_policies | sort == (['default', item.item.policy] | sort)
+        fail_msg: "{{ item.item.user }}: group membership or policy is not what config/story.json says"
+        quiet: true
+      loop: "{{ v_logins.results }}"
+      loop_control:
+        label: "{{ item.item.user }}"
+
+    - name: The group is SCIM's and has every roster member
+      ansible.builtin.assert:
+        that:
+          - v_group.json.data.type == 'internal'
+          - v_group.json.data.member_entity_ids | length == (v_story.people | selectattr('source', 'eq', 'scim') | list | length)
+        quiet: true
+
+    - name: Read the stage (value metadata, key, baseline)
+      ansible.builtin.uri:
+        url: "{{ item }}"
+        ca_path: "{{ vgov_ca }}"
+        headers: "{{ v_headers }}"
+      loop:
+        - "{{ v_ns }}/kv/metadata/{{ v_story.breakglass.path }}"
+        - "{{ v_ns }}/transit/keys/release-signing"
+        - "{{ v_ns }}/sys/policies/acl/gov-requestor"
+        - "{{ v_ns }}/sys/policies/egp/gov-breakglass-ticket"
+        - "{{ v_ns }}/sys/policies/egp/gov-algorithm-target"
+      register: v_reads
+      check_mode: false
+
+    - name: The rules and the stage are what the story needs
+      ansible.builtin.assert:
+        that:
+          - v_reads.results[0].json.data.current_version >= 1
+          - v_reads.results[1].json.data.type == 'ecdsa-p256'
+          - "'control_group' in v_reads.results[2].json.data.policy"
+          - "'governor-keyholders' in v_reads.results[2].json.data.policy"
+          - v_reads.results[3].json.data.enforcement_level == 'hard-mandatory'
+          - v_reads.results[4].json.data.enforcement_level == 'hard-mandatory'
+        quiet: true
+
+    - name: Say where the stage stands
+      ansible.builtin.debug:
+        msg: >-
+          {{ v_logins.results | length }} people logged in;
+          release-signing v{{ v_reads.results[1].json.data.latest_version }}
+          ({{ v_reads.results[1].json.data.latest_version_type | default('ecdsa-p256') }});
+          {{ v_group.json.data.member_entity_ids | length }} keyholders in {{ v_story.keyholder_group }}

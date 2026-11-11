@@ -1,0 +1,55 @@
+# make stage-reset (D18): the morning after a show. Deletes the key
+# release-signing (its algorithm may have changed in chapter II) and the saved
+# baseline; scripts/stage-reset.sh then runs make roster (the HR roster back)
+# and ansible stage (v1 and a fresh baseline). The break-glass value stays.
+# Held requests need nothing: Vault has no cancel, they expire with their
+# wrapping token (Control Group max_ttl).
+- name: Reset the stage
+  hosts: localhost
+  gather_facts: false
+  vars:
+    reset_ns: "{{ vgov_cluster_addr }}/v1/{{ vgov_namespace }}"
+    reset_headers:
+      X-Vault-Token: "{{ lookup('ansible.builtin.file', vgov_tokens_dir + '/ansible-platform') }}"
+  tasks:
+    - name: Read the key before it goes (versions only)
+      ansible.builtin.uri:
+        url: "{{ reset_ns }}/transit/keys/release-signing"
+        ca_path: "{{ vgov_ca }}"
+        headers: "{{ reset_headers }}"
+        status_code: [200, 404]
+      register: reset_key
+      check_mode: false
+
+    - name: Say what goes
+      ansible.builtin.debug:
+        msg: >-
+          release-signing: {{ 'absent' if reset_key.status == 404 else
+          'versions ' ~ (reset_key.json.data['keys'] | list | join(',')) ~ ', latest ' ~
+          (reset_key.json.data.latest_version_type | default(reset_key.json.data.type)) }}
+
+    - name: Make it deletable
+      ansible.builtin.uri:
+        url: "{{ reset_ns }}/transit/keys/release-signing/config"
+        ca_path: "{{ vgov_ca }}"
+        method: POST
+        headers: "{{ reset_headers }}"
+        body_format: json
+        body: { deletion_allowed: true }
+        status_code: [200, 204]
+      when: reset_key.status == 200
+
+    - name: Delete it
+      ansible.builtin.uri:
+        url: "{{ reset_ns }}/transit/keys/release-signing"
+        ca_path: "{{ vgov_ca }}"
+        method: DELETE
+        headers: "{{ reset_headers }}"
+        status_code: [204]
+      when: reset_key.status == 200
+      changed_when: true
+
+    - name: Forget the saved baseline
+      ansible.builtin.file:
+        path: "{{ vgov_root }}/.build/stage/baseline.json"
+        state: absent

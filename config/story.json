@@ -1,0 +1,37 @@
+{
+  "title": "The Second Key",
+  "setting": "Kestrel Harbour Authority: a fictional port that runs its lock gates from one control system.",
+  "namespace": "governor",
+  "people": [
+    { "user": "rowan", "name": "Rowan Hale", "role": "requestor", "title": "Duty engineer", "source": "userpass", "policy": "gov-requestor" },
+    { "user": "ines", "name": "Ines Varga", "role": "keyholder", "title": "Harbour master", "source": "scim", "policy": "gov-keyholder" },
+    { "user": "kofi", "name": "Kofi Mensah", "role": "keyholder", "title": "Chief of lock operations", "source": "scim", "policy": "gov-keyholder" },
+    { "user": "mara", "name": "Mara Lindqvist", "role": "keyholder", "title": "Head of control systems", "source": "scim", "policy": "gov-keyholder" },
+    { "user": "jonas", "name": "Jonas Reyes", "role": "contractor", "title": "Visiting systems contractor", "source": "userpass", "policy": "gov-keyholder" }
+  ],
+  "keyholder_group": "governor-keyholders",
+  "approvals": 2,
+  "ticket_pattern": "^HAR-[0-9]{4}$",
+  "ticket_example": "HAR-0417",
+  "chapters": [
+    { "id": "rule", "title": "The Rule", "source": "input/05.md §1" },
+    { "id": "second-key", "title": "The Second Key", "source": "input/05.md", "path": "kv/data/breakglass/lock-gates" },
+    { "id": "algorithm", "title": "The Algorithm's Second Key", "source": "input/06.md", "path": "transit/keys/release-signing/algorithm", "from": { "type": "ecdsa-p256" }, "to": { "type": "ml-dsa", "parameter_set": "65" } },
+    { "id": "left", "title": "The Keyholder Who Left", "source": "input/07.md", "leaver": "mara" },
+    { "id": "ledger", "title": "The Ledger", "source": "input/05.md §5" }
+  ],
+  "breakglass": {
+    "path": "breakglass/lock-gates",
+    "fields": { "system": "Lock gate control, west basin", "recovery_code": "KESTREL-TIDE-4417-NORTH", "note": "Synthetic value for the lab. Not a real credential." }
+  },
+  "manifest": {
+    "name": "lock-gate-controller",
+    "version": "4.2.0",
+    "released": "2026-11-11",
+    "artifacts": [
+      { "file": "lockgate-controller-4.2.0.tar.gz", "sha256": "5f0c9e1b7a3d2c4e8f6a1b0d9c7e5a3f2b4d6c8e0a1f3b5d7c9e2a4b6d8f0c1e" },
+      { "file": "lockgate-firmware-4.2.0.bin", "sha256": "a1c3e5f7b9d0c2e4a6f8b0d2c4e6a8f0b2d4c6e8a0f2b4d6c8e0a2f4b6d8c0e2" }
+    ],
+    "note": "Synthetic release manifest for the lab."
+  }
+}

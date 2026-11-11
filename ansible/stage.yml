@@ -1,0 +1,11 @@
+# Phase 10 (ansible stage): the runtime state the chapters start from (D8),
+# with ansible-platform: the break-glass value (written once, never read), the
+# key release-signing at v1 (ecdsa-p256), and the baseline manifest signed
+# with it (.build/stage/, synthetic, not secret). Second run: changed=0.
+- name: Dress the stage
+  hosts: localhost
+  gather_facts: false
+  vars:
+    stage_story: "{{ lookup('ansible.builtin.file', vgov_root + '/config/story.json') | from_json }}"
+  roles:
+    - stage

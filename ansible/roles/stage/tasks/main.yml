@@ -1,0 +1,130 @@
+# stage: idempotent; the value is written once, the key created once,
+# the baseline signed again only when Vault no longer verifies it.
+
+- name: Ensure .build/stage
+  ansible.builtin.file:
+    path: "{{ stage_dir }}"
+    state: directory
+    mode: "0755"
+
+# ── Chapter I: the break-glass value ──────────────────────────────────────────
+# Ansible may read the metadata, never the data (vgov-ansible-platform).
+- name: Is the break-glass value staged?
+  ansible.builtin.uri:
+    url: "{{ stage_ns }}/kv/metadata/{{ stage_story.breakglass.path }}"
+    ca_path: "{{ vgov_ca }}"
+    headers: "{{ stage_headers }}"
+    status_code: [200, 404]
+  register: stage_value_meta
+  check_mode: false
+
+- name: Write the synthetic break-glass value (once)
+  ansible.builtin.uri:
+    url: "{{ stage_ns }}/kv/data/{{ stage_story.breakglass.path }}"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers: "{{ stage_headers }}"
+    body_format: json
+    body:
+      data: "{{ stage_story.breakglass.fields }}"
+    status_code: [200]
+  when: stage_value_meta.status == 404
+  changed_when: true
+  no_log: true
+
+# ── Chapter II: the signing key and the baseline ──────────────────────────────
+- name: Read the key release-signing
+  ansible.builtin.uri:
+    url: "{{ stage_ns }}/transit/keys/release-signing"
+    ca_path: "{{ vgov_ca }}"
+    headers: "{{ stage_headers }}"
+    status_code: [200, 404]
+  register: stage_key
+  check_mode: false
+
+- name: Create release-signing as ecdsa-p256 (v1)
+  ansible.builtin.uri:
+    url: "{{ stage_ns }}/transit/keys/release-signing"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers: "{{ stage_headers }}"
+    body_format: json
+    body: { type: ecdsa-p256 }
+    status_code: [200, 204]
+  when: stage_key.status == 404
+  changed_when: true
+
+# make stage-reset deletes the key and stages it again (D18).
+- name: Allow the reset to delete it
+  ansible.builtin.uri:
+    url: "{{ stage_ns }}/transit/keys/release-signing/config"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers: "{{ stage_headers }}"
+    body_format: json
+    body: { deletion_allowed: true }
+    status_code: [200, 204]
+  when: stage_key.status == 404 or not stage_key.json.data.deletion_allowed
+  changed_when: true
+
+- name: Read the key after creation (versions and v1's public key)
+  ansible.builtin.uri:
+    url: "{{ stage_ns }}/transit/keys/release-signing"
+    ca_path: "{{ vgov_ca }}"
+    headers: "{{ stage_headers }}"
+  register: stage_key_now
+  check_mode: false
+
+- name: Write the manifest bytes every signature covers
+  ansible.builtin.copy:
+    dest: "{{ stage_dir }}/manifest.json"
+    content: "{{ stage_manifest }}"
+    mode: "0644"
+
+- name: Read the saved baseline, if any
+  ansible.builtin.slurp:
+    src: "{{ stage_dir }}/baseline.json"
+  register: stage_baseline_file
+  failed_when: false
+
+- name: Does Vault still verify the saved baseline?
+  ansible.builtin.uri:
+    url: "{{ stage_ns }}/transit/verify/release-signing"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers: "{{ stage_headers }}"
+    body_format: json
+    body:
+      input: "{{ stage_manifest | b64encode }}"
+      signature: "{{ (stage_baseline_file.content | b64decode | from_json).signature }}"
+    status_code: [200, 400]
+  register: stage_verify
+  when: stage_baseline_file.content is defined
+  check_mode: false
+
+- name: Sign the baseline manifest with v1
+  ansible.builtin.uri:
+    url: "{{ stage_ns }}/transit/sign/release-signing"
+    ca_path: "{{ vgov_ca }}"
+    method: POST
+    headers: "{{ stage_headers }}"
+    body_format: json
+    body:
+      input: "{{ stage_manifest | b64encode }}"
+      key_version: 1
+    status_code: [200]
+  register: stage_signed
+  when: stage_baseline_file.content is not defined or not (stage_verify.json.data.valid | default(false))
+  changed_when: true
+
+- name: Save the baseline (signature, v1 public key, manifest digest)
+  ansible.builtin.copy:
+    dest: "{{ stage_dir }}/baseline.json"
+    mode: "0644"
+    content: >-
+      {{ {'key': 'release-signing', 'key_version': 1, 'type': 'ecdsa-p256',
+          'signature': stage_signed.json.data.signature,
+          'public_key': stage_key_now.json.data['keys']['1'].public_key,
+          'manifest_sha256': stage_manifest | hash('sha256'),
+          'signed_at': stage_key_now.json.data['keys']['1'].creation_time} | to_nice_json }}
+  when: stage_signed is not skipped

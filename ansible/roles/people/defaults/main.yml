@@ -1,0 +1,6 @@
+people_ns: "{{ vgov_cluster_addr }}/v1/{{ vgov_namespace }}"
+people_token: "{{ lookup('ansible.builtin.file', vgov_tokens_dir + '/ansible-platform') }}"
+# A SCIM token cannot be renewed (probe P3): mint for 30 days, re-mint when
+# less than a week is left. The console token is periodic (24h, the API renews).
+people_scim_ttl: 720h
+people_scim_min_left: 604800

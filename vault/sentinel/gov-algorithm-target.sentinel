@@ -1,0 +1,7 @@
+# The release-signing key may change only to ML-DSA-65 (D12).
+
+main = rule {
+  request.operation is not "update" or
+  ((request.data.type else "") is "ml-dsa" and
+  (request.data.parameter_set else "") is "65")
+}

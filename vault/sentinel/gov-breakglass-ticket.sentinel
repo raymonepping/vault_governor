@@ -1,0 +1,6 @@
+# A break-glass read must name an incident ticket: ?ticket=HAR-1234 (D12).
+
+main = rule {
+  request.operation is not "read" or
+  (request.data.ticket else "") matches "^HAR-[0-9]{4}$"
+}

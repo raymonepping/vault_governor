@@ -1,0 +1,7 @@
+stage_ns: "{{ vgov_cluster_addr }}/v1/{{ vgov_namespace }}"
+stage_headers:
+  X-Vault-Token: "{{ lookup('ansible.builtin.file', vgov_tokens_dir + '/ansible-platform') }}"
+stage_dir: "{{ vgov_root }}/.build/stage"
+# The exact bytes every signature covers: the manifest as compact JSON with
+# sorted keys (the API reads this file, it never rebuilds it).
+stage_manifest: "{{ stage_story.manifest | to_json(sort_keys=True, separators=[',', ':']) }}"

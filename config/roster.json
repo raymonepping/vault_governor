@@ -1,0 +1,12 @@
+{
+  "source": "Kestrel Harbour Authority, HR roster (fictional; the SCIM client's source of truth, D13)",
+  "client": "governor-hr",
+  "users": [
+    { "userName": "ines", "displayName": "Ines Varga", "title": "Harbour master", "active": true },
+    { "userName": "kofi", "displayName": "Kofi Mensah", "title": "Chief of lock operations", "active": true },
+    { "userName": "mara", "displayName": "Mara Lindqvist", "title": "Head of control systems", "active": true }
+  ],
+  "groups": [
+    { "displayName": "governor-keyholders", "members": ["ines", "kofi", "mara"] }
+  ]
+}
