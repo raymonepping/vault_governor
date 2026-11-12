@@ -447,3 +447,17 @@ SCIM CLI, the security pass). Four findings, all fixed:
 
 Results: `make verify` **72 passed**, `make test-ui` **24 passed**,
 screenshots refreshed and looked at (overview, desktop and phone).
+
+### Round 3 (2026-11-11 and 12), after commit 8ab443b
+
+The four reviews again. One finding, fixed:
+
+22. `ansible/probe.yml` was codex's Ansible probe (case P25, marker
+    "lantern"); governor's `make probe` never runs it and nothing refers to
+    it. Deleted.
+
+The first `make verify` of this round failed one check: the Podman VM clock
+was 899 s behind the Mac after the Mac slept (`make clock-sync` found 4858 s
+by the time it ran). Not a lab defect: the check did its job.
+`make clock-sync`, then `make verify`: **72 passed** (16 341 s wall time,
+the Mac slept through most of it). `make lint`: clean.
