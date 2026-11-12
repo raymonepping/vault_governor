@@ -476,3 +476,24 @@ Results (the Mac slept and its lid was closed during the first runs; each
 run started with `make clock-sync`, which found the VM 533 s and then 11 s
 behind): `make test-ui` **24 passed** (98 s, awake), `make doctor` nothing
 wrong, `make verify` **72 passed** (5229 s wall time, lid closed).
+
+### Round 5 (2026-11-12), after commit bc31e09: zero to-dos
+
+The four reviews found nothing new. Also read for the first time: the two
+copied workflows (`release.yml` runs only on a `v*` tag; `gitleaks.yml` is
+SHA-pinned with read-only permissions): both fine.
+
+GitHub Actions on `main`: CI and Gitleaks green on `2ca7eb5`, `97b5ba7` and
+`bc31e09` (unit tests and console build; shell, Terraform, Ansible, Node).
+The runs of `44f5f7e` and `8ab443b` stayed queued on GitHub's side; their
+code is all in `97b5ba7`, which is green.
+
+**Open for the user, not to-dos:** Dependabot (fixed in round 2) opened pull
+requests for lucide-react, tailwindcss, @tailwindcss/vite,
+gitleaks-action 3, actions/checkout 7 and @playwright/test 1.65, all green
+in CI. Merging is the user's call. Note on Playwright 1.65: the lab runs the
+cached Chromium of 1.64.1 (the lock file); 1.65 needs a new browser
+download (`npx playwright install chromium`) before `make test-ui`.
+
+The loop ends here: `make verify` 72, `make test-ui` 24, `make boundary` 66,
+`make probe` 83, `make rehearsal` 50, 52 unit tests.
