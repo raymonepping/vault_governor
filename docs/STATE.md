@@ -461,3 +461,18 @@ was 899 s behind the Mac after the Mac slept (`make clock-sync` found 4858 s
 by the time it ran). Not a lab defect: the check did its job.
 `make clock-sync`, then `make verify`: **72 passed** (16 341 s wall time,
 the Mac slept through most of it). `make lint`: clean.
+
+### Round 4 (2026-11-12), after commit 97b5ba7
+
+The four reviews again, plus a mechanical sweep (every `make` target has its
+script; every key in `config/defaults.conf` is read somewhere). One finding,
+fixed:
+
+23. `VGOV_WEB_CN` in `config/defaults.conf` was read by nothing
+    (`gen-certs.sh` puts `governor.localhost` in the SANs itself), so an
+    override in `.env` would have changed nothing: the key is gone.
+
+Results (the Mac slept and its lid was closed during the first runs; each
+run started with `make clock-sync`, which found the VM 533 s and then 11 s
+behind): `make test-ui` **24 passed** (98 s, awake), `make doctor` nothing
+wrong, `make verify` **72 passed** (5229 s wall time, lid closed).
