@@ -497,3 +497,9 @@ download (`npx playwright install chromium`) before `make test-ui`.
 
 The loop ends here: `make verify` 72, `make test-ui` 24, `make boundary` 66,
 `make probe` 83, `make rehearsal` 50, 52 unit tests.
+
+## Done (2026-11-12)
+
+The user's own run before handing over: `make clock-sync` (the VM was 5061 s
+behind after the Mac slept) and `make show-ready`: green in 126 s, console at
+<https://localhost:13901/#/overview>.
